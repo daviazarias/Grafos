@@ -1,0 +1,20 @@
+digraph G {
+	h [color=orange, style=filled];
+	g [color=orange, style=filled];
+	d [color=orange, style=filled];
+	c [color=orange, style=filled];
+	f [color=orange, style=filled];
+	e [color=orange, style=filled];
+	b [color=orange, style=filled];
+	a [color=orange, style=filled];
+	h -> h
+	g -> h
+	g -> f
+	d -> c
+	c -> g
+	c -> d
+	e -> a
+	b -> f
+	b -> e
+	a -> b
+}

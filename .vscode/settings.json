@@ -1,0 +1,10 @@
+{
+    "files.associations": {
+        "*.pl": "prolog",
+        "stdbool.h": "c",
+        "grafos.h": "c",
+        "stdlib.h": "c",
+        "busca.h": "c",
+        "string.h": "c"
+    }
+}
