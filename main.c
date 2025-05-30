@@ -30,6 +30,7 @@ int main(int argc, char **argv)
     removeAresta("b","c",grafo);
     removeAresta("f","g",grafo);
     removeAresta("a","f",grafo);
+
     exibirGrafo(grafo);
 
     gerarDot("grafo.dot",grafo);

@@ -8,6 +8,20 @@
 /*----------------------------MÉTODOS ESTÁTICOS-------------------------------*/
 /*----------------------------------------------------------------------------*/
 
+static void iniciarGrafo(Grafo *grafo)
+{
+    struct vertice *no_cabeca = malloc(sizeof(struct vertice));
+
+    grafo->qtdArestas = 0;
+    grafo->qtdVertices = 0;
+    grafo->listaVertices = no_cabeca;
+    
+    no_cabeca->proxVertice = NULL;
+    no_cabeca->adj = NULL;
+    no_cabeca->nomeVertice[0] = 0;
+    no_cabeca->id = -1;
+}
+
 // Retorna uma aresta que aponta para o parâmetro vértice.
 static struct aresta *criarAresta(struct vertice *vertice)
 {
@@ -20,10 +34,10 @@ static struct aresta *criarAresta(struct vertice *vertice)
 }
 
 // Insere uma aresta na lista de adjacência de um vértice.
-static void inserirAresta(struct aresta *novaAresta, struct vertice *cabeca)
+static void inserirAresta(struct vertice *vertice, struct aresta *novaAresta)
 {
-    novaAresta->proxAresta = cabeca->adj;
-    cabeca->adj = novaAresta;
+    novaAresta->proxAresta = vertice->adj->proxAresta;
+    vertice->adj->proxAresta = novaAresta;
 }
 
 // Desaloca toda a lista de adjacência de "vertice".
@@ -42,8 +56,8 @@ static void liberarArestas(Grafo *grafo, struct vertice *vertice)
 
 static struct aresta *buscaArestaVN(struct vertice *v1, char *nomeV2, struct aresta **ant)
 {
-    struct aresta *aresta = v1->adj;
-    *ant = NULL;
+    struct aresta *aresta = v1->adj->proxAresta;
+    *ant = v1->adj;
 
     while(aresta && strcmp(aresta->vertice->nomeVertice,nomeV2)){
         *ant = aresta;
@@ -57,8 +71,8 @@ static struct aresta *buscaArestaVN(struct vertice *v1, char *nomeV2, struct are
 // Passar os endereços dos vértices v1 e v2 como parâmetros.
 static struct aresta *buscaArestaV(struct vertice *v1, struct vertice *v2, struct aresta **ant)
 {
-    struct aresta *aresta = v1->adj;
-    *ant = NULL;
+    struct aresta *aresta = v1->adj->proxAresta;
+    *ant = v1->adj;
 
     while(aresta && aresta->vertice != v2){
         *ant = aresta;
@@ -77,8 +91,7 @@ static bool removeArestaVN(struct vertice *v1, char *nomeV2, Grafo *grafo)
 
     /*-----------Aresta existe------------*/ 
 
-    if(!ant) v1->adj = arestaRm->proxAresta;
-    else ant->proxAresta = arestaRm->proxAresta;
+    ant->proxAresta = arestaRm->proxAresta;
 
     free(arestaRm);
     grafo->qtdArestas--;
@@ -89,19 +102,15 @@ static bool removeVerticeV(struct vertice *verticeRm, struct vertice *pai, Grafo
 {
     int i = --grafo->qtdVertices - 1;
 
-    if(pai)  pai->proxVertice = verticeRm->proxVertice; 
-    else grafo->listaVertices = verticeRm->proxVertice;
+    pai->proxVertice = verticeRm->proxVertice; 
 
     liberarArestas(grafo,verticeRm);
 
-    struct vertice *vertice = grafo->listaVertices;
-
-    while(vertice)
+    for(struct vertice *vertice = grafo->listaVertices->proxVertice;
+        vertice; vertice = vertice->proxVertice)
     {
         removeArestaVN(vertice,verticeRm->nomeVertice,grafo);
-
         vertice->id = i--;
-        vertice = vertice->proxVertice;
     }
 
     free(verticeRm);
@@ -112,19 +121,31 @@ static bool removeVerticeV(struct vertice *verticeRm, struct vertice *pai, Grafo
 /*----------------------------MÉTODOS PÚBLICOS-------------------------------*/
 /*---------------------------------------------------------------------------*/
 
+bool buscaAresta(char *nome1, char *nome2, Grafo *grafo)
+{
+    struct aresta *a;
+    struct vertice *v1 = buscaVertice(nome1,grafo,&v1);
+
+    if(!v1) return false;
+
+    for(a = v1->adj->proxAresta;
+        a && strcmp(nome2,a->vertice->nomeVertice);
+        a = a->proxAresta);
+
+    return a != NULL;
+}
+
 // Cria uma nova aresta entre os vértices passados como argumento, inserindo-a
 // em sua lista de adjacência. 
 void novaAresta(Grafo *grafo, struct vertice *v1, struct vertice *v2)
 {
-    inserirAresta(criarAresta(v2),v1);
+    inserirAresta(v1,criarAresta(v2));
     grafo->qtdArestas++;
 }
 
 bool removeAresta(char *nomeV1, char *nomeV2, Grafo *grafo)
 {
-    struct vertice *v1, *aux;
-    v1 = buscaVertice(nomeV1,grafo,&aux);
-
+    struct vertice *v1 = buscaVertice(nomeV1,grafo,&v1);
     return v1 && removeArestaVN(v1,nomeV2,grafo);
 }
 
@@ -133,8 +154,8 @@ bool removeAresta(char *nomeV1, char *nomeV2, Grafo *grafo)
 // ou com o endereço do vértice, caso contrário.
 struct vertice *buscaVertice(char *nome, Grafo *grafo, struct vertice **vPai)
 {
-    struct vertice *vertice = grafo->listaVertices;
-    *vPai = NULL;
+    struct vertice *vertice = grafo->listaVertices->proxVertice;
+    *vPai = grafo->listaVertices;
 
     while(vertice && strcmp(nome,vertice->nomeVertice)){
         *vPai = vertice;
@@ -153,10 +174,10 @@ struct vertice *novoVertice(char *nome, Grafo *grafo)
 
     strcpy(vertice->nomeVertice,nome);
     vertice->id = grafo->qtdVertices++;
-    vertice->proxVertice = grafo->listaVertices;
-    vertice->adj = NULL;
+    vertice->proxVertice = grafo->listaVertices->proxVertice;
+    vertice->adj = criarAresta(NULL);
 
-    grafo->listaVertices = vertice;
+    grafo->listaVertices->proxVertice = vertice;
     return vertice;
 }
 
@@ -190,27 +211,24 @@ bool removeVertice(char *nome, Grafo *grafo)
 Grafo *criarGrafo(FILE *arquivo)
 {
     Grafo *grafo = malloc(sizeof(Grafo));
-    grafo->qtdArestas = 0;
-    grafo->qtdVertices = 0;
-    grafo->listaVertices = NULL;
-
+    iniciarGrafo(grafo);
     char buffer1[NOME_MAX], buffer2[NOME_MAX];
 
     while(EOF != fscanf(arquivo, "%s", buffer1))
     {
-        struct vertice *v1, *v2, *auxV;
-        struct aresta *auxA;
+        struct vertice *v1, *v2;
+        struct aresta *aux;
 
-        v1 = buscaVertice(buffer1,grafo,&auxV);
+        v1 = buscaVertice(buffer1,grafo,&v1);
         if(!v1) {v1 = novoVertice(buffer1,grafo);}
 
         if(EOF == fscanf(arquivo,"%s",buffer2)) 
             break;
 
-        v2 = buscaVertice(buffer2,grafo,&auxV);
-        if(!v2) v2 = novoVertice(buffer2,grafo);
+        v2 = buscaVertice(buffer2,grafo,&v2);
+        if(!v2) {v2 = novoVertice(buffer2,grafo);}
         
-        if(!buscaArestaV(v1,v2,&auxA))
+        if(!buscaArestaV(v1,v2,&aux))
             novaAresta(grafo,v1,v2);
     }
 
@@ -221,12 +239,12 @@ Grafo *criarGrafo(FILE *arquivo)
 // Exibe a lista de adjacência do grafo na saída padrão.
 void exibirGrafo(Grafo *grafo)
 {
-    struct vertice *vertice = grafo->listaVertices;
+    struct vertice *vertice = grafo->listaVertices->proxVertice;
     puts("Exibindo grafo...");
     while(vertice)
     {
         printf("[%d] %s -> ", vertice->id, vertice->nomeVertice);
-        struct aresta *aresta = vertice->adj;
+        struct aresta *aresta = vertice->adj->proxAresta;
         while(aresta)
         {
             printf("%s ", aresta->vertice->nomeVertice);
@@ -246,11 +264,11 @@ void gerarDot(char *nomeArquivo, Grafo *grafo)
     }
 
     fprintf(arquivo,"digraph G {\n");
-    for(struct vertice *v = grafo->listaVertices; v; v = v->proxVertice)
+    for(struct vertice *v = grafo->listaVertices->proxVertice; v; v = v->proxVertice)
         fprintf(arquivo,"\t%s [color=orange, style=filled];\n",v->nomeVertice);
 
-    for(struct vertice *v = grafo->listaVertices; v; v = v->proxVertice)
-        for(struct aresta *a = v->adj; a; a = a->proxAresta)
+    for(struct vertice *v = grafo->listaVertices->proxVertice; v; v = v->proxVertice)
+        for(struct aresta *a = v->adj->proxAresta; a; a = a->proxAresta)
             fprintf(arquivo,"\t%s -> %s\n",v->nomeVertice,a->vertice->nomeVertice);
 
     fputc('}',arquivo);
@@ -263,13 +281,7 @@ void liberarGrafo(Grafo *grafo)
     while(vertice)
     {
         struct vertice *tempV = vertice->proxVertice;
-        struct aresta *aresta = vertice->adj;
-        while(aresta)
-        {
-            struct aresta *tempA = aresta->proxAresta;
-            free(aresta);
-            aresta = tempA;
-        }
+        liberarArestas(grafo,vertice);
         free(vertice);
         vertice = tempV;
     }

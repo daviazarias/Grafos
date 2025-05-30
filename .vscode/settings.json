@@ -5,6 +5,7 @@
         "grafos.h": "c",
         "stdlib.h": "c",
         "busca.h": "c",
-        "string.h": "c"
+        "string.h": "c",
+        "cstdlib": "c"
     }
 }
